@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Recipe Book</title>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Recipe Book</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2f5fa8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Recipes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+@font-face{font-family:Fraunces;font-weight:600;font-display:swap;src:url(fonts/fraunces-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:Fraunces;font-weight:700;font-display:swap;src:url(fonts/fraunces-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:400;font-display:swap;src:url(fonts/atkinson-hyperlegible-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:700;font-display:swap;src:url(fonts/atkinson-hyperlegible-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:Caveat;font-weight:600;font-display:swap;src:url(fonts/caveat-latin-600-normal.woff2) format("woff2")}
+</style>
+<style id="lockcss">
+:root{color-scheme:light dark}
+body{margin:0;font:17px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif;background:light-dark(#fff,#0f1a2c);color:light-dark(#1b2333,#eef2f8)}
+.ging{height:22px;background:repeating-linear-gradient(90deg,rgba(47,95,168,.55) 0 14px,transparent 14px 28px),repeating-linear-gradient(0deg,rgba(47,95,168,.55) 0 11px,transparent 11px 22px)}
+.lock{min-height:calc(100vh - 22px);display:grid;place-items:center;padding:24px}
+.card{width:min(380px,100%);text-align:center}
+.card img{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px -10px rgba(0,0,0,.4)}
+.card h1{font:700 34px/1.1 Fraunces,Georgia,serif;color:light-dark(#2f5fa8,#7fa6e6);margin:18px 0 6px}
+.card p{margin:0 0 20px;color:light-dark(#5b6476,#a9b4c6)}
+form{display:grid;gap:10px}
+input{font:16px "Atkinson Hyperlegible",sans-serif;padding:13px 14px;border-radius:10px;border:1px solid light-dark(#cfd7e4,#2a3a58);background:light-dark(#fff,#16233a);color:inherit;text-align:center}
+input:focus{outline:2px solid #2f5fa8;border-color:transparent}
+button{font:700 17px "Atkinson Hyperlegible",sans-serif;padding:13px;border:0;border-radius:10px;background:#f2c94c;color:#1b2333;cursor:pointer;min-height:48px}
+button:disabled{opacity:.6}
+.err{color:#d4452f;min-height:1.5em;margin:4px 0 0;font-size:15px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="lockui">
+<div class="ging"></div>
+<div class="lock"><div class="card">
+<img src="icons/icon-192.png" alt="">
+<h1>Family Recipe Book</h1>
+<p id="msg">Enter the family password to open the book.</p>
+<form id="f"><input id="pw" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required><button id="go">Open the book</button></form>
+<p class="err" id="err" role="alert"></p>
+</div></div>
+</div>
+<script>
+{
+const $=id=>document.getElementById(id);
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const LS='recipeKey';
+let key;
+async function dec(buf){const u=new Uint8Array(buf);return crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},key,u.slice(12))}
+async function get(p){const r=await fetch(p);if(!r.ok)throw new Error('load');return r.arrayBuffer()}
+async function derive(pw){
+  const cfg=await (await fetch('vault.json')).json();
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(cfg.salt),iterations:cfg.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},true,['decrypt']);
+}
+async function open(){
+  const data=JSON.parse(new TextDecoder().decode(await dec(await get('book.bin'))));
+  document.getElementById('lockcss').remove();$('lockui').remove();
+  document.head.insertAdjacentHTML('beforeend',data.styles);
+  const tmp=document.createElement('div');tmp.innerHTML=data.body;
+  const scripts=[...tmp.querySelectorAll('script')];scripts.forEach(s=>s.remove());
+  while(tmp.firstChild)document.body.appendChild(tmp.firstChild);
+  for(const s of scripts){const n=document.createElement('script');n.textContent=s.textContent;document.body.appendChild(n)}
+  const urls={};
+  const load=async p=>urls[p]||(urls[p]=dec(await get(p)).then(b=>URL.createObjectURL(new Blob([b],{type:'image/jpeg'}))));
+  const io=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue;io.unobserve(e.target);const im=e.target;load(im.dataset.enc).then(u=>{im.src=u;const b=im.closest('[data-encfull]');if(b)b.dataset.full=u}).catch(()=>{})}},{rootMargin:'800px 0px'});
+  document.querySelectorAll('img[data-enc]').forEach(i=>io.observe(i));
+  if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
+}
+async function tryStored(){
+  try{const raw=localStorage.getItem(LS);if(!raw)return false;
+    key=await crypto.subtle.importKey('raw',b64(raw),{name:'AES-GCM'},false,['decrypt']);await open();return true}
+  catch(e){try{localStorage.removeItem(LS)}catch(_){};key=null;return false}
+}
+$('f').addEventListener('submit',async e=>{
+  e.preventDefault();$('err').textContent='';$('go').disabled=true;$('go').textContent='Opening…';
+  try{
+    key=await derive($('pw').value.trim());
+    await open();
+    try{const raw=new Uint8Array(await crypto.subtle.exportKey('raw',key));localStorage.setItem(LS,btoa(String.fromCharCode(...raw)))}catch(_){}
+  }catch(err){
+    $('err').textContent=(err&&err.message==='load')?'Could not load the book. Check your connection and try again.':'That password didn’t work. Try again.';
+    $('go').disabled=false;$('go').textContent='Open the book';
+  }
+});
+tryStored();
+if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+}
+</script>
+</body>
+</html>
