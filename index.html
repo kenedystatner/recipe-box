@@ -48,8 +48,8 @@ button:disabled{opacity:.6}
 <div class="lock"><div class="card">
 <img src="icons/icon-192.png" alt="">
 <h1>Family Recipe Book</h1>
-<p id="msg">Enter the family password to open the book.</p>
-<form id="f"><input id="pw" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required><button id="go">Open the book</button></form>
+<p id="msg">Enter the family PIN to open the book.</p>
+<form id="f"><input id="pw" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" aria-label="PIN" required><button id="go">Open the book</button></form>
 <p class="err" id="err" role="alert"></p>
 </div></div>
 </div>
@@ -92,7 +92,7 @@ $('f').addEventListener('submit',async e=>{
     await open();
     try{const raw=new Uint8Array(await crypto.subtle.exportKey('raw',key));localStorage.setItem(LS,btoa(String.fromCharCode(...raw)))}catch(_){}
   }catch(err){
-    $('err').textContent=(err&&err.message==='load')?'Could not load the book. Check your connection and try again.':'That password didn’t work. Try again.';
+    $('err').textContent=(err&&err.message==='load')?'Could not load the book. Check your connection and try again.':'That PIN didn’t work. Try again.';
     $('go').disabled=false;$('go').textContent='Open the book';
   }
 });
