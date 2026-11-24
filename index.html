@@ -57,17 +57,17 @@ button:disabled{opacity:.6}
 {
 const $=id=>document.getElementById(id);
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
-const LS='recipeKey';
+const LS='recipeKey';const V={"salt": "jM2mPwh9H+fr7Y+7/hfnDQ==", "iter": 600000, "dir": "data/a22465a367/"};
 let key;
 async function dec(buf){const u=new Uint8Array(buf);return crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},key,u.slice(12))}
 async function get(p){const r=await fetch(p);if(!r.ok)throw new Error('load');return r.arrayBuffer()}
 async function derive(pw){
-  const cfg=await (await fetch('vault.json')).json();
+  const cfg=V;
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(cfg.salt),iterations:cfg.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},true,['decrypt']);
 }
 async function open(){
-  const data=JSON.parse(new TextDecoder().decode(await dec(await get('book.bin'))));
+  const data=JSON.parse(new TextDecoder().decode(await dec(await get(V.dir+'book.bin'))));
   document.getElementById('lockcss').remove();$('lockui').remove();
   document.head.insertAdjacentHTML('beforeend',data.styles);
   const tmp=document.createElement('div');tmp.innerHTML=data.body;
@@ -75,7 +75,7 @@ async function open(){
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);
   for(const s of scripts){const n=document.createElement('script');n.textContent=s.textContent;document.body.appendChild(n)}
   const urls={};
-  const load=async p=>urls[p]||(urls[p]=dec(await get(p)).then(b=>URL.createObjectURL(new Blob([b],{type:'image/jpeg'}))));
+  const load=async p=>urls[p]||(urls[p]=dec(await get(V.dir+p)).then(b=>URL.createObjectURL(new Blob([b],{type:'image/jpeg'}))));
   const io=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue;io.unobserve(e.target);const im=e.target;load(im.dataset.enc).then(u=>{im.src=u;const b=im.closest('[data-encfull]');if(b)b.dataset.full=u}).catch(()=>{})}},{rootMargin:'800px 0px'});
   document.querySelectorAll('img[data-enc]').forEach(i=>io.observe(i));
   if(location.hash){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}
